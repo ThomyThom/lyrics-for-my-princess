@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Presente para minha neném</title>
+    <link rel="icon" type="image/x-icon" href="src/icon.png">
+    <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <span class="dot"></span>
+            <div>
+                <h1>Uma pequena dedicação</h1>
+                <div class="sub">a um <b>grande amor</b></div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card player">
+                <div class="pad">
+                    <div class="cover enhanced-shadow">
+                        <div class="ring"></div>
+                        <h2 id="songTitle">Earned It — The Weeknd<br><span class="tiny" id="songHint">Para você <b>minha</b> princesa</span></h2>
+                    </div>
+                </div>
+                <div class="pad">
+                    <div class="controls">
+                        <button id="playpause" aria-label="Reproduzir/Pausar" class="main-btn">▶︎ Reproduzir</button>
+                        <button class="ghost" id="stop" aria-label="Parar">⏹ Parar</button>
+                    </div>
+                    <div class="seek" style="margin-top:14px">
+                        <span id="leftTime" class="tiny">0:00</span>
+                        <div class="bar" id="seekbar" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                            <div class="fill" id="seekfill"></div>
+                        </div>
+                        <span id="rightTime" class="tiny">0:00</span>
+                    </div>
+                    <audio id="audio" src="EI-TW.mp3"></audio>
+                </div>
+            </div>
+
+            <div class="card lyrics-card">
+                <div class="pad lyrics">
+                    <div class="toggle">
+                        <strong>Lyrics</strong>
+                    </div>
+                    <div id="karaoke" class="karaoke" aria-live="polite"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <script src="src/script.js"></script>
+</body>
+</html>
