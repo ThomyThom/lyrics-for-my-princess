@@ -55,7 +55,7 @@ h1 { font-weight: 800; font-size: clamp(24px, 3vw, 36px); letter-spacing: .3px; 
     z-index: 2; text-align: center; margin: 0; font-size: clamp(22px, 2.4vw, 30px);
     font-weight: 800; text-shadow: 0 6px 30px rgba(124,156,249,.45)
 }
-.tiny { font-size: 18px; color: var(--muted) }
+.tiny { font-size: 18px; color: var(--text) }
 
 .controls {
     display: flex;
@@ -395,4 +395,5 @@ body, .container, .header, .dot, h1, .sub, .card, .player, .cover, .ring, .tiny,
     -webkit-user-select: none;
     -ms-user-select: none;
     -moz-user-select: none;
+
 }
