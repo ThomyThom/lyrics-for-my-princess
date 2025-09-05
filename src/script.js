@@ -111,7 +111,13 @@ function updateKaraoke() {
         const karaokeHeight = karaoke.clientHeight;
         const activeLineHeight = active.clientHeight;
         targetScrollTop = active.offsetTop - (karaokeHeight / 2) + (activeLineHeight / 2);
+    }
+    // Rolagem suave adaptada para mobile
+    const smoothness = isMobile() ? 0.25 : 0.1;
+    currentScrollTop += (targetScrollTop - currentScrollTop) * smoothness;
+    karaoke.scrollTop = currentScrollTop;
 
+    if (active) {
         const words = [...active.querySelectorAll('.word')];
         for (const w of words) {
             const start = parseFloat(w.dataset.t), next = parseFloat(w.dataset.next);
@@ -127,10 +133,6 @@ function updateKaraoke() {
             }
         }
     }
-    // Rolagem suave permanece igual
-    currentScrollTop += (targetScrollTop - currentScrollTop) * 0.1;
-    karaoke.scrollTop = currentScrollTop;
-
     // Atualização mais frequente para máxima precisão
     rafId = requestAnimationFrame(updateKaraoke);
 }
@@ -145,18 +147,48 @@ function setupAudioUI() {
 // --- Event Listeners ---
 
 playpause.addEventListener('click', () => {
-    if (audio.paused) { audio.play(); playpause.textContent = '⏸ Pausar'; }
-    else { audio.pause(); playpause.textContent = '▶︎ Reproduzir'; }
+    const icon = playpause.querySelector('.icon');
+    const label = playpause.querySelector('.label');
+    if (audio.paused) {
+        audio.play();
+        playpause.classList.add('playing');
+        icon.textContent = '⏸';
+        label.textContent = 'Pausar';
+    } else {
+        audio.pause();
+        playpause.classList.remove('playing');
+        icon.textContent = '▶︎';
+        label.textContent = 'Reproduzir';
+    }
 });
 
 stopBtn.addEventListener('click', () => {
     audio.pause();
     audio.currentTime = 0;
-    playpause.textContent = '▶︎ Reproduzir';
+    playpause.classList.remove('playing');
+    const icon = playpause.querySelector('.icon');
+    const label = playpause.querySelector('.label');
+    icon.textContent = '▶︎';
+    label.textContent = 'Reproduzir';
 });
 
-audio.addEventListener('play', () => { cancelAnimationFrame(rafId); updateKaraoke(); });
-audio.addEventListener('pause', () => cancelAnimationFrame(rafId));
+audio.addEventListener('play', () => {
+    cancelAnimationFrame(rafId);
+    updateKaraoke();
+    playpause.classList.add('playing');
+    const icon = playpause.querySelector('.icon');
+    const label = playpause.querySelector('.label');
+    icon.textContent = '⏸';
+    label.textContent = 'Pausar';
+});
+audio.addEventListener('pause', () => {
+    cancelAnimationFrame(rafId);
+    playpause.classList.remove('playing');
+    const icon = playpause.querySelector('.icon');
+    const label = playpause.querySelector('.label');
+    icon.textContent = '▶︎';
+    label.textContent = 'Reproduzir';
+});
 audio.addEventListener('loadedmetadata', setupAudioUI);
 audio.addEventListener('timeupdate', () => {
     if (!isSeeking) {
@@ -202,3 +234,59 @@ async function loadDefaultLRC() {
 // --- Estado Inicial ---
 karaoke.classList.remove('hide');
 loadDefaultLRC();
+
+// ====== MENSAGEM ROMÂNTICA AO INICIAR ======
+setTimeout(() => {
+    if (window.innerWidth < 700) return;
+    const msg = document.createElement('div');
+    msg.textContent = "Te amo, minha princesa! 💖";
+    msg.style.position = 'fixed';
+    msg.style.top = '18%';
+    msg.style.left = '50%';
+    msg.style.transform = 'translateX(-50%)';
+    msg.style.background = 'rgba(200,107,240,0.92)';
+    msg.style.color = '#fff';
+    msg.style.padding = '16px 32px';
+    msg.style.borderRadius = '18px';
+    msg.style.fontWeight = 'bold';
+    msg.style.fontSize = '1.25em';
+    msg.style.boxShadow = '0 6px 32px #c86bf0bb';
+    msg.style.zIndex = 2000;
+    msg.style.opacity = 0;
+    msg.style.transition = 'opacity 1.2s';
+    document.body.appendChild(msg);
+    setTimeout(() => { msg.style.opacity = 1; }, 300);
+    setTimeout(() => { msg.style.opacity = 0; }, 3500);
+    setTimeout(() => { msg.remove(); }, 5000);
+}, 1200);
+
+// ====== CORAÇÕES FLUTUANTES ======
+function spawnHearts() {
+    if (window.innerWidth < 600) return; // Evita excesso no mobile
+    const container = document.body;
+    for (let i = 0; i < 8; i++) {
+        const heart = document.createElement('div');
+        heart.textContent = '💖';
+        heart.style.position = 'fixed';
+        heart.style.left = `${Math.random() * 100}%`;
+        heart.style.top = `${100 + Math.random() * 30}%`;
+        heart.style.fontSize = `${18 + Math.random() * 32}px`;
+        heart.style.opacity = 0.7 + Math.random() * 0.3;
+        heart.style.pointerEvents = 'none';
+        heart.style.zIndex = 999;
+        heart.style.transition = 'transform 7s linear, opacity 7s linear';
+        setTimeout(() => {
+            heart.style.transform = `translateY(-110vh) scale(${0.8 + Math.random() * 0.7})`;
+            heart.style.opacity = 0;
+        }, 100 + Math.random() * 1000);
+        setTimeout(() => heart.remove(), 8000);
+        container.appendChild(heart);
+    }
+}
+setInterval(spawnHearts, 4200);
+window.addEventListener('DOMContentLoaded', spawnHearts);
+
+// ====== MOBILE: Ajuste de rolagem ultra-suave ======
+function isMobile() {
+    return window.innerWidth < 700;
+}

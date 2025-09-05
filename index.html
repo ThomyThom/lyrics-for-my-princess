@@ -3,17 +3,25 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Presente para minha neném</title>
+    <title>Presente para minha neném 💖</title>
     <link rel="icon" type="image/x-icon" href="src/icon.png">
     <link rel="stylesheet" href="src/style.css">
+    <meta name="theme-color" content="#c86bf0">
 </head>
 <body>
+    <div class="romantic-bg"></div>
     <div class="container">
         <div class="header">
-            <span class="dot"></span>
+            <span class="dot heart-animate"></span>
             <div>
-                <h1>Uma pequena dedicação</h1>
-                <div class="sub">a um <b>grande amor</b></div>
+                <h1>
+                    Para o amor da minha vida <span class="emoji">💌</span>
+                </h1>
+                <div class="sub">
+                    <span class="emoji">🌹</span>
+                    Uma pequena dedicação para <b>você</b>, minha razão de sorrir.
+                    <span class="emoji">✨</span>
+                </div>
             </div>
         </div>
 
@@ -22,12 +30,20 @@
                 <div class="pad">
                     <div class="cover enhanced-shadow">
                         <div class="ring"></div>
-                        <h2 id="songTitle">Earned It — The Weeknd<br><span class="tiny" id="songHint">Para você <b>minha</b> princesa</span></h2>
+                        <div class="heart-float"></div>
+                        <h2 id="songTitle">
+                            Earned It — The Weeknd<br>
+                            <span class="tiny" id="songHint">
+                                Para você <b>minha princesa</b> <span class="emoji">👑</span>
+                            </span>
+                        </h2>
                     </div>
                 </div>
                 <div class="pad">
                     <div class="controls">
-                        <button id="playpause" aria-label="Reproduzir/Pausar" class="main-btn">▶︎ Reproduzir</button>
+                        <button id="playpause" aria-label="Reproduzir/Pausar" class="main-btn">
+                            <span class="icon">▶︎</span> <span class="label">Reproduzir</span>
+                        </button>
                         <button class="ghost" id="stop" aria-label="Parar">⏹ Parar</button>
                     </div>
                     <div class="seek" style="margin-top:14px">
@@ -44,13 +60,19 @@
             <div class="card lyrics-card">
                 <div class="pad lyrics">
                     <div class="toggle">
-                        <strong>Lyrics</strong>
+                        <strong>Letra da música <span class="emoji">🎶</span></strong>
                     </div>
                     <div id="karaoke" class="karaoke" aria-live="polite"></div>
                 </div>
             </div>
         </div>
-
+        <footer class="footer love-footer">
+            <div>
+                <span class="emoji">❤️</span>
+                Feito com todo meu amor para você, neném.<br>
+                <span class="emoji">🌙</span> Sempre seu, para sempre nós. <span class="emoji">💑</span>
+            </div>
+        </footer>
     </div>
     <script src="src/script.js"></script>
 </body>
