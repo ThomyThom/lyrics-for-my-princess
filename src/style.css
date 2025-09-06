@@ -75,19 +75,19 @@ button:hover, .file-label-btn:hover { transform: translateY(-2px); box-shadow: 0
 
 .seek { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
 .bar {
-    height: 8px;
+    height: 12px;
     border-radius: 999px;
-    background: linear-gradient(90deg, #7c9cf9 0%, #c86bf0 100%);
+    background: linear-gradient(90deg, #fff 0%, #c86bf0 60%, #7c9cf9 100%);
     position: relative;
-    outline: 2px solid #c86bf0cc;
+    outline: 2.5px solid #fff;
     cursor: pointer;
-    transition: height 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
-    box-shadow: 0 2px 16px #c86bf055;
+    transition: height 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s, outline 0.2s;
+    box-shadow: 0 2px 24px #c86bf0cc, 0 0 8px #fff;
 }
 .bar:hover {
-    height: 12px;
-    background: linear-gradient(90deg, #c86bf0 0%, #7c9cf9 100%);
-    outline: 2.5px solid #fff;
+    height: 16px;
+    background: linear-gradient(90deg, #c86bf0 0%, #fff 100%);
+    outline: 3px solid #fff;
 }
 
 .fill {
@@ -96,7 +96,7 @@ button:hover, .file-label-btn:hover { transform: translateY(-2px); box-shadow: 0
     width: 0%;
     border-radius: 999px;
     background: linear-gradient(90deg, #fff 0%, #c86bf0 100%);
-    box-shadow: 0 0 24px #c86bf0cc, 0 0 8px #fff;
+    box-shadow: 0 0 32px #fff, 0 0 16px #c86bf0cc;
     transition: width 0.1s linear, background 0.2s;
     z-index: 2;
 }
@@ -338,7 +338,9 @@ a { color: #cbd6ff }
     outline: none;
 }
 #playpause:active {
-    transform: scale(0.97);
+    /* Suaviza o efeito de pressionar */
+    transform: scale(0.96);
+    transition: transform 0.22s cubic-bezier(.4,0,.2,1);
 }
 
 /* Botão stop mais fluido */
@@ -368,6 +370,13 @@ a { color: #cbd6ff }
     align-items: center;
     justify-content: center;
     gap: 0.5em;
+    /* Suaviza a animação de clique */
+    transition: 
+        background 0.22s, 
+        color 0.18s, 
+        transform 0.22s cubic-bezier(.4,0,.2,1), 
+        box-shadow .22s;
+    will-change: transform;
 }
 
 #playpause .icon, #stop .icon {
@@ -395,5 +404,4 @@ body, .container, .header, .dot, h1, .sub, .card, .player, .cover, .ring, .tiny,
     -webkit-user-select: none;
     -ms-user-select: none;
     -moz-user-select: none;
-
 }
