@@ -2,76 +2,100 @@
 <html lang="pt-BR">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Presente para minha neném 💖</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Para Você 💖</title>
     <link rel="icon" type="image/x-icon" href="src/icon.png">
     <link rel="stylesheet" href="src/style.css">
-    <meta name="theme-color" content="#c86bf0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;800&display=swap" rel="stylesheet">
+    <meta name="theme-color" content="#0f172a">
 </head>
 <body>
-    <div class="romantic-bg"></div>
-    <div class="container">
-        <div class="header">
-            <span class="dot heart-animate"></span>
-            <div>
-                <h1>
-                    Para o amor da minha vida <span class="emoji">💌</span>
-                </h1>
-                <div class="sub">
-                    <span class="emoji">🌹</span>
-                    Uma pequena dedicação para <b>você</b>, minha razão de sorrir.
-                    <span class="emoji">✨</span>
-                </div>
+    <!-- TELA DE CARREGAMENTO (PRELOADER) -->
+    <div id="loaderOverlay" class="loader-overlay">
+        <div class="loader-content">
+            <div class="heart-spinner">❤️</div>
+            <h2 id="loadingText">Preparando surpresa...</h2>
+            <div class="loading-bar-container">
+                <div id="loadingBar" class="loading-bar"></div>
             </div>
+            <p id="percentText">0%</p>
+            <button id="startExperienceBtn" class="btn-start hidden">
+                Abrir Presente ✨
+            </button>
         </div>
+    </div>
 
-        <div class="grid">
-            <div class="card player">
-                <div class="pad">
-                    <div class="cover enhanced-shadow">
-                        <div class="ring"></div>
-                        <div class="heart-float"></div>
-                        <h2 id="songTitle">
-                            Earned It — The Weeknd<br>
-                            <span class="tiny" id="songHint">
-                                Para você <b>minha princesa</b> <span class="emoji">👑</span>
-                            </span>
-                        </h2>
+    <!-- Canvas para Fundo e Partículas -->
+    <canvas id="bgCanvas"></canvas>
+    
+    <div class="app-container hidden-app" id="appContainer">
+        <header class="header fade-in">
+            <div class="badge">
+                <span class="pulse-dot"></span>
+                <span>Dedicação Especial</span>
+            </div>
+            <h1>Para o Amor da Minha Vida</h1>
+            <p class="subtitle">Você é a única realidade que eu quero.</p>
+        </header>
+
+        <main class="grid-layout">
+            <!-- Player Card -->
+            <section class="card player-card glass scale-in">
+                <div class="cover-wrapper">
+                    <!-- Canvas para Visualizador de Áudio -->
+                    <canvas id="visualizerCanvas" width="300" height="300"></canvas>
+                    <div class="album-art" id="albumArt">
+                        <div class="note-icon">🎵</div>
                     </div>
                 </div>
-                <div class="pad">
-                    <div class="controls">
-                        <button id="playpause" aria-label="Reproduzir/Pausar" class="main-btn">
-                            <span class="icon">▶︎</span> <span class="label">Reproduzir</span>
-                        </button>
-                        <button class="ghost" id="stop" aria-label="Parar">⏹ Parar</button>
-                    </div>
-                    <div class="seek" style="margin-top:14px">
-                        <span id="leftTime" class="tiny">0:00</span>
-                        <div class="bar" id="seekbar" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                            <div class="fill" id="seekfill"></div>
+                
+                <div class="track-info">
+                    <h2 id="songTitle">Starry Eyes</h2>
+                    <p id="artistName">The Weeknd</p>
+                </div>
+
+                <div class="controls-wrapper">
+                    <div class="seek-container">
+                        <span id="currentTime">0:00</span>
+                        <div class="progress-bar-wrap" id="progressBarWrap">
+                            <div class="progress-bar-bg"></div>
+                            <div class="progress-bar-fill" id="progressBarFill"></div>
+                            <div class="progress-thumb" id="progressThumb"></div>
                         </div>
-                        <span id="rightTime" class="tiny">0:00</span>
+                        <span id="totalTime">0:00</span>
                     </div>
-                    <audio id="audio" src="EI-TW.mp3"></audio>
-                </div>
-            </div>
 
-            <div class="card lyrics-card">
-                <div class="pad lyrics">
-                    <div class="toggle">
-                        <strong>Letra da música <span class="emoji">🎶</span></strong>
+                    <div class="buttons">
+                        <button id="btnPlayPause" class="btn-main" aria-label="Play">
+                            <svg class="icon-play" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+                            <svg class="icon-pause" viewBox="0 0 24 24" style="display:none"><path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        </button>
                     </div>
-                    <div id="karaoke" class="karaoke" aria-live="polite"></div>
                 </div>
-            </div>
-        </div>
-        <footer class="footer love-footer">
-            <div>
-                <span class="emoji">❤️</span>
-                Feito com todo meu amor para você, neném.<br>
-                <span class="emoji">🌙</span> Sempre seu, para sempre nós. <span class="emoji">💑</span>
-            </div>
+                <!-- O SRC será injetado via JS após o download -->
+                <audio id="audioElement" crossorigin="anonymous"></audio>
+            </section>
+
+            <!-- Lyrics Card -->
+            <section class="card lyrics-card glass slide-in">
+                <div class="lyrics-header">
+                    <h3>Letra</h3>
+                    <div class="live-badge">Sincronizado</div>
+                </div>
+                <div class="lyrics-viewport" id="lyricsContainer">
+                    <div id="lyricsContent" class="lyrics-content">
+                        <!-- Linhas geradas via JS -->
+                    </div>
+                    <div class="lyrics-overlay top"></div>
+                    <div class="lyrics-overlay bottom"></div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer fade-in">
+            Feito com <span class="heart-beat">❤️</span> e código puro.
         </footer>
     </div>
     <script src="src/script.js"></script>

@@ -1,292 +1,460 @@
-const audio = document.getElementById('audio');
-const playpause = document.getElementById('playpause');
-const stopBtn = document.getElementById('stop');
-const seekbar = document.getElementById('seekbar');
-const seekfill = document.getElementById('seekfill');
-const leftTime = document.getElementById('leftTime');
-const rightTime = document.getElementById('rightTime');
-const karaoke = document.getElementById('karaoke');
-// Removido: const audioFile = document.getElementById('audioFile');
-const songTitle = document.getElementById('songTitle');
-const songHint = document.getElementById('songHint');
+// --- Elementos DOM ---
+const audio = document.getElementById('audioElement');
+const btnPlayPause = document.getElementById('btnPlayPause');
+const iconPlay = btnPlayPause.querySelector('.icon-play');
+const iconPause = btnPlayPause.querySelector('.icon-pause');
+const progressBarWrap = document.getElementById('progressBarWrap');
+const progressBarFill = document.getElementById('progressBarFill');
+const progressThumb = document.getElementById('progressThumb');
+const timeCurrent = document.getElementById('currentTime');
+const timeTotal = document.getElementById('totalTime');
+const lyricsContent = document.getElementById('lyricsContent');
+const visualizerCanvas = document.getElementById('visualizerCanvas');
+const bgCanvas = document.getElementById('bgCanvas');
 
-let timeline = [];
-let rafId = null;
-let isSeeking = false;
+// Elementos do Loader
+const loaderOverlay = document.getElementById('loaderOverlay');
+const loadingBar = document.getElementById('loadingBar');
+const percentText = document.getElementById('percentText');
+const startBtn = document.getElementById('startExperienceBtn');
+const loadingText = document.getElementById('loadingText');
+const appContainer = document.getElementById('appContainer');
 
-// MELHORIA: Variáveis para a rolagem ultra-suave
-let currentScrollTop = 0;
-let targetScrollTop = 0;
+// --- Variáveis de Estado ---
+let isPlaying = false;
+let currentLineIndex = -1;
+let audioContext, analyser, dataArray, source;
+let isDragging = false;
+let animationFrameId;
+let lyrics = [];
+let audioBlobUrl = null;
 
-function fmt(t) {
-    if (!isFinite(t)) return '00:00';
-    const m = Math.floor(t / 60), s = Math.floor(t % 60);
-    return `${m}:${s.toString().padStart(2,'0')}`;
-}
+// --- SISTEMA DE PRELOAD (BUFFERING KILLER) ---
+async function initApp() {
+    try {
+        const audioUrl = 'SE-TW.mp3';
+        
+        // 1. Fetch com leitura de stream para barra de progresso
+        const response = await fetch(audioUrl);
+        const contentLength = +response.headers.get('Content-Length');
+        
+        // Fallback se não tiver Content-Length (alguns servidores locais não mandam)
+        const total = contentLength || 8000000; // Estima 8MB
+        
+        const reader = response.body.getReader();
+        let receivedLength = 0;
+        let chunks = [];
 
-function parseTimestamp(str) {
-    const m = str.match(/(?:(\d+):)?(\d{1,2})(?:\.(\d{1,3}))?/);
-    if (!m) return 0;
-    const min = parseInt(m[1] || '0', 10), sec = parseInt(m[2] || '0', 10), ms = parseInt((m[3] || '0').padEnd(3, '0'), 10);
-    return min * 60 + sec + ms / 1000;
-}
-
-function parseLRC(text) {
-    const lines = [];
-    const rawLines = text.replace(/\r/g, '').split(/\n+/);
-    for (const raw of rawLines) {
-        if (!raw.trim()) continue;
-        const lineMatch = raw.match(/^\s*\[(\d{1,2}:\d{2}(?:\.\d{1,3})?)\]\s*(.*)$/);
-        if (!lineMatch) continue;
-        const lineTime = parseTimestamp(lineMatch[1]);
-        let rest = lineMatch[2];
-        const words = [];
-        const wordRegex = /<([0-9]{1,2}:[0-9]{2}(?:\.[0-9]{1,3})?)>([^<\s][^<]*?)(?=\s*<|$)/g;
-        let m;
-        while ((m = wordRegex.exec(rest))) {
-            words.push({ t: parseTimestamp(m[1]), text: m[2].trim() });
+        while(true) {
+            const {done, value} = await reader.read();
+            if (done) break;
+            
+            chunks.push(value);
+            receivedLength += value.length;
+            
+            // Atualiza UI
+            const percent = Math.min(100, Math.round((receivedLength / total) * 100));
+            loadingBar.style.width = `${percent}%`;
+            percentText.textContent = `${percent}%`;
         }
-        if (words.length === 0) {
-            const fallbackWords = rest.split(/\s+/).filter(Boolean);
-            const avgDur = 0.35;
-            fallbackWords.forEach((w, i) => words.push({ t: lineTime + i * avgDur, text: w }));
-        }
-        lines.push({ lineTime, words });
+
+        // 2. Cria o Blob (Arquivo local na memória)
+        const blob = new Blob(chunks);
+        audioBlobUrl = URL.createObjectURL(blob);
+        audio.src = audioBlobUrl;
+
+        // 3. Tudo pronto
+        loadingText.textContent = "Tudo pronto para você! 💝";
+        loadingBar.style.background = "#4ade80"; // Verde sucesso
+        startBtn.classList.add('visible'); // Mostra botão de entrar
+
+    } catch (error) {
+        console.error("Erro no carregamento:", error);
+        loadingText.textContent = "Erro ao carregar o amor... Tente recarregar.";
     }
-    lines.sort((a, b) => a.lineTime - b.lineTime);
-    for (const ln of lines) {
-        for (let i = 0; i < ln.words.length; i++) {
-            const cur = ln.words[i];
-            const next = ln.words[i + 1] || null;
-            cur.nextT = next ? next.t : (ln.words[i].t + 0.6);
-        }
-    }
-    return lines;
 }
 
-function renderLyrics() {
-    karaoke.innerHTML = '';
-    timeline.forEach((ln, idx) => {
-        const line = document.createElement('div');
-        line.className = 'line';
-        line.dataset.index = idx;
-        ln.words.forEach((w, wi) => {
-            const wrap = document.createElement('span');
-            wrap.className = 'word';
-            wrap.dataset.t = w.t;
-            wrap.dataset.next = w.nextT;
-            const base = document.createElement('span'); base.className = 'base'; base.textContent = w.text + ' ';
-            const glow = document.createElement('span'); glow.className = 'glow'; glow.textContent = w.text + ' ';
-            wrap.appendChild(base); wrap.appendChild(glow);
-            line.appendChild(wrap);
-        });
-        karaoke.appendChild(line);
+// Inicia o download assim que o script roda
+initApp();
+
+// Botão de Entrada (Necessário para desbloquear AudioContext no navegador)
+startBtn.addEventListener('click', () => {
+    // Esconde loader
+    loaderOverlay.classList.add('hidden');
+    // Mostra app
+    appContainer.classList.add('visible');
+    
+    // Inicia contexto de áudio
+    initAudioContext();
+    audioContext.resume().then(() => {
+        // Tenta tocar (pode falhar se o blob não carregou 100%, mas o botão só aparece se carregou)
+        togglePlay();
+    });
+});
+
+// --- LETRA EMBUTIDA ---
+const lyricsText = `
+[00:01.51]I only met you in my dreams before
+[00:04.85]When I was young and alone in the world
+[00:08.69]You were there when I needed someone
+[00:12.25]To call my girl
+[00:15.93]And now you're my reality
+[00:19.10]And I wanna feel you close
+[00:22.54]But you're defeated baby
+[00:24.87]Broken hurtin' sufferin' from a shattered soul
+[00:31.58]Oh a shattered soul oh
+[00:44.41]Let me be there
+[00:46.28]Let me be there for your heart
+[00:51.27]Let me be there
+[00:53.14]I can be there 'til you're whole
+[00:58.55]You weren't touched by a man in so long
+[01:02.10]'Cause the last time it was way too strong
+[01:05.60]Let me be there
+[01:07.57]Let me be there for your heart
+[01:12.59]Let me love you
+[01:14.76]Let me love you like you need
+[01:19.88]And I'll make it
+[01:21.65]Make it my responsibility
+[01:27.06]I'll be there every step of the way
+[01:31.05]I'll get you back on your feet
+[01:34.22]Let me love you
+[01:35.94]Let me love you like you need
+[01:41.14]And you can kick me
+[01:42.98]Kick me to the curb
+[01:48.40]It's okay baby
+[01:50.27]I promise that I felt worse
+[01:55.83]Back then I was starry eyed
+[01:59.61]And now I'm so cynical
+[02:02.60]Baby break me
+[02:04.66]Kick me to the curb
+[02:09.18]Oh
+`;
+
+// --- Parser LRC ---
+function parseLyrics() {
+    const lines = lyricsText.split('\n');
+    const regex = /^\[(\d{2}):(\d{2}(?:\.\d+)?)\](.*)/;
+    
+    lyrics = lines.map(line => {
+        const match = line.match(regex);
+        if (!match) return null;
+        const min = parseInt(match[1]);
+        const sec = parseFloat(match[2]);
+        const content = match[3].trim();
+        return {
+            time: min * 60 + sec,
+            text: content || "♪"
+        };
+    }).filter(l => l !== null);
+    
+    renderLyricsHTML();
+}
+
+function renderLyricsHTML() {
+    lyricsContent.innerHTML = '';
+    lyrics.forEach((line, index) => {
+        const div = document.createElement('div');
+        div.className = 'lyric-line';
+        div.textContent = line.text;
+        div.dataset.index = index;
+        div.onclick = () => {
+            audio.currentTime = line.time;
+            if (!isPlaying) togglePlay();
+        };
+        lyricsContent.appendChild(div);
     });
 }
 
-function findActiveLine(t) {
-    let idx = -1;
-    for (let i = 0; i < timeline.length; i++) {
-        if (timeline[i].lineTime <= t) idx = i; else break;
-    }
-    return idx;
+// --- Visualizador de Áudio ---
+function initAudioContext() {
+    if (audioContext) return;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    audioContext = new AudioContext();
+    analyser = audioContext.createAnalyser();
+    
+    analyser.smoothingTimeConstant = 0.85;
+    analyser.fftSize = 256; 
+    
+    // Importante: reconectar o elemento se o src mudou (blob)
+    source = audioContext.createMediaElementSource(audio);
+    source.connect(analyser);
+    analyser.connect(audioContext.destination);
+    
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
 }
 
-function updateKaraoke() {
-    // Use currentTime diretamente para máxima precisão
-    const t = audio.currentTime || 0;
-    if (!isSeeking) {
-        const dur = audio.duration || 0;
-        leftTime.textContent = fmt(t);
-        seekfill.style.width = dur ? `${(t / dur) * 100}%` : '0%';
-        seekbar.setAttribute('aria-valuenow', dur ? Math.floor((t / dur) * 100) : 0);
+function drawVisualizer() {
+    if (!isPlaying) return;
+
+    const ctx = visualizerCanvas.getContext('2d');
+    const width = visualizerCanvas.width;
+    const height = visualizerCanvas.height;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = 105;
+
+    analyser.getByteFrequencyData(dataArray);
+    ctx.clearRect(0, 0, width, height);
+
+    ctx.beginPath();
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "rgba(236, 72, 153, 0.6)"; 
+    
+    const barWidth = (Math.PI * 2) / dataArray.length;
+    
+    for (let i = 0; i < dataArray.length; i++) {
+        if (i > dataArray.length * 0.7) continue; 
+
+        const val = dataArray[i];
+        const barHeight = (val / 255) * 45; 
+        const angle = i * barWidth - (Math.PI / 2);
+
+        const x1 = centerX + Math.cos(angle) * radius;
+        const y1 = centerY + Math.sin(angle) * radius;
+        const x2 = centerX + Math.cos(angle) * (radius + barHeight);
+        const y2 = centerY + Math.sin(angle) * (radius + barHeight);
+
+        const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+        gradient.addColorStop(0, '#c084fc');
+        gradient.addColorStop(1, '#ec4899');
+
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
     }
+    
+    const averageFreq = dataArray.reduce((a,b) => a+b) / dataArray.length;
+    const scale = 1 + (averageFreq / 255) * 0.08;
+    document.querySelector('.album-art').style.transform = `scale(${scale})`;
 
-    const idx = findActiveLine(t);
-    const lines = [...karaoke.querySelectorAll('.line')];
-    lines.forEach((el, i) => el.classList.toggle('active', i === idx));
+    requestAnimationFrame(drawVisualizer);
+}
 
-    const active = lines[idx];
-    if (active) {
-        const karaokeHeight = karaoke.clientHeight;
-        const activeLineHeight = active.clientHeight;
-        targetScrollTop = active.offsetTop - (karaokeHeight / 2) + (activeLineHeight / 2);
-    }
-    // Rolagem suave adaptada para mobile
-    const smoothness = isMobile() ? 0.25 : 0.1;
-    currentScrollTop += (targetScrollTop - currentScrollTop) * smoothness;
-    karaoke.scrollTop = currentScrollTop;
+// --- Sincronização e Loop Principal ---
 
-    if (active) {
-        const words = [...active.querySelectorAll('.word')];
-        for (const w of words) {
-            const start = parseFloat(w.dataset.t), next = parseFloat(w.dataset.next);
-            const glow = w.querySelector('.glow');
-            // Sincronização mais precisa: calcula o progresso da palavra em tempo real
-            if (t >= start && t < next) {
-                const p = (t - start) / (next - start);
-                glow.style.clipPath = `inset(0 ${100 - Math.max(0, Math.min(1, p)) * 100}% 0 0)`;
-            } else if (t >= next) {
-                glow.style.clipPath = 'inset(0 0% 0 0)';
-            } else {
-                glow.style.clipPath = 'inset(0 100% 0 0)';
-            }
+function syncLyrics() {
+    const time = audio.currentTime;
+    let idx = -1;
+    for (let i = 0; i < lyrics.length; i++) {
+        if (lyrics[i].time <= time) {
+            idx = i;
+        } else {
+            break; 
         }
     }
-    // Atualização mais frequente para máxima precisão
-    rafId = requestAnimationFrame(updateKaraoke);
+
+    if (idx !== currentLineIndex) {
+        if (currentLineIndex !== -1 && lyricsContent.children[currentLineIndex]) {
+            lyricsContent.children[currentLineIndex].classList.remove('active');
+        }
+        
+        if (idx !== -1 && lyricsContent.children[idx]) {
+            const el = lyricsContent.children[idx];
+            el.classList.add('active');
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        currentLineIndex = idx;
+    }
 }
 
-function setupAudioUI() {
-    const dur = audio.duration;
-    leftTime.textContent = fmt(0);
-    rightTime.textContent = fmt(dur);
-    seekbar.setAttribute('aria-valuemax', dur);
+function updateProgress() {
+    if (isPlaying) {
+        requestAnimationFrame(updateProgress);
+    }
+
+    const current = audio.currentTime;
+    const dur = audio.duration || 1;
+    
+    timeCurrent.textContent = formatTime(current);
+    syncLyrics(); 
+
+    if (!isDragging) {
+        const percent = (current / dur) * 100;
+        progressBarFill.style.width = `${percent}%`;
+        progressThumb.style.left = `${percent}%`;
+    }
 }
 
-// --- Event Listeners ---
-
-playpause.addEventListener('click', () => {
-    const icon = playpause.querySelector('.icon');
-    const label = playpause.querySelector('.label');
+// --- Controles de Áudio ---
+function togglePlay() {
+    // initAudioContext chamado no botão de entrada
+    
     if (audio.paused) {
-        audio.play();
-        playpause.classList.add('playing');
-        icon.textContent = '⏸';
-        label.textContent = 'Pausar';
+        audioContext.resume().then(() => {
+            audio.play().then(() => {
+                isPlaying = true;
+                iconPlay.style.display = 'none';
+                iconPause.style.display = 'block';
+                drawVisualizer();
+                updateProgress();
+            }).catch(e => console.error("Erro no play:", e));
+        });
     } else {
         audio.pause();
-        playpause.classList.remove('playing');
-        icon.textContent = '▶︎';
-        label.textContent = 'Reproduzir';
+        isPlaying = false;
+        iconPlay.style.display = 'block';
+        iconPause.style.display = 'none';
     }
-});
+}
 
-stopBtn.addEventListener('click', () => {
-    audio.pause();
-    audio.currentTime = 0;
-    playpause.classList.remove('playing');
-    const icon = playpause.querySelector('.icon');
-    const label = playpause.querySelector('.label');
-    icon.textContent = '▶︎';
-    label.textContent = 'Reproduzir';
-});
+function formatTime(s) {
+    if (!isFinite(s)) return "0:00";
+    const min = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${min}:${sec.toString().padStart(2, '0')}`;
+}
 
-audio.addEventListener('play', () => {
-    cancelAnimationFrame(rafId);
-    updateKaraoke();
-    playpause.classList.add('playing');
-    const icon = playpause.querySelector('.icon');
-    const label = playpause.querySelector('.label');
-    icon.textContent = '⏸';
-    label.textContent = 'Pausar';
-});
-audio.addEventListener('pause', () => {
-    cancelAnimationFrame(rafId);
-    playpause.classList.remove('playing');
-    const icon = playpause.querySelector('.icon');
-    const label = playpause.querySelector('.label');
-    icon.textContent = '▶︎';
-    label.textContent = 'Reproduzir';
-});
-audio.addEventListener('loadedmetadata', setupAudioUI);
-audio.addEventListener('timeupdate', () => {
-    if (!isSeeking) {
-        leftTime.textContent = fmt(audio.currentTime);
-    }
-});
+// --- Lógica de Barra de Progresso ---
 
-// MELHORIA: Lógica completa para barra de progresso arrastável
-function handleSeek(e) {
-    const rect = seekbar.getBoundingClientRect();
-    const p = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    const newTime = p * audio.duration;
-    if (isFinite(audio.duration)) {
+function calculateSeek(e) {
+    const rect = progressBarWrap.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    let x = clientX - rect.left;
+    x = Math.max(0, Math.min(x, rect.width));
+    const percent = x / rect.width;
+    return percent;
+}
+
+function handleSeekMove(e) {
+    if (!isDragging) return;
+    e.preventDefault(); 
+
+    const percent = calculateSeek(e);
+    
+    progressBarFill.style.width = `${percent * 100}%`;
+    progressThumb.style.left = `${percent * 100}%`;
+    
+    const newTime = percent * audio.duration;
+    if (isFinite(newTime)) {
         audio.currentTime = newTime;
-        leftTime.textContent = fmt(newTime); // Atualiza o tempo imediatamente
-        seekfill.style.width = `${p * 100}%`;
+        timeCurrent.textContent = formatTime(newTime);
+        syncLyrics(); 
     }
 }
-seekbar.addEventListener('mousedown', e => {
-    isSeeking = true;
-    handleSeek(e);
-    document.addEventListener('mousemove', handleSeek);
-    document.addEventListener('mouseup', () => {
-        isSeeking = false;
-        document.removeEventListener('mousemove', handleSeek);
-    }, { once: true });
+
+function startDrag(e) {
+    isDragging = true;
+    handleSeekMove(e); 
+    document.addEventListener('mousemove', handleSeekMove);
+    document.addEventListener('touchmove', handleSeekMove, { passive: false });
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchend', endDrag);
+}
+
+function endDrag(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    
+    document.removeEventListener('mousemove', handleSeekMove);
+    document.removeEventListener('touchmove', handleSeekMove);
+    document.removeEventListener('mouseup', endDrag);
+    document.removeEventListener('touchend', endDrag);
+    
+    if (!isPlaying) {
+        updateProgress(); 
+    }
+}
+
+btnPlayPause.addEventListener('click', togglePlay);
+
+// Inicialização de Metadata e Lyrics
+// Nota: loadedmetadata dispara quando o blob é atribuído
+audio.addEventListener('loadedmetadata', () => {
+    timeTotal.textContent = formatTime(audio.duration);
+    parseLyrics();
+});
+
+audio.addEventListener('ended', () => {
+    isPlaying = false;
+    iconPlay.style.display = 'block';
+    iconPause.style.display = 'none';
+    progressBarFill.style.width = '0%';
+    progressThumb.style.left = '0%';
+});
+
+progressBarWrap.addEventListener('mousedown', startDrag);
+progressBarWrap.addEventListener('touchstart', startDrag, { passive: false });
+
+audio.addEventListener('timeupdate', () => {
+    if (!isPlaying && !isDragging) {
+        timeCurrent.textContent = formatTime(audio.currentTime);
+        const percent = (audio.currentTime / audio.duration) * 100 || 0;
+        progressBarFill.style.width = `${percent}%`;
+        progressThumb.style.left = `${percent}%`;
+        syncLyrics();
+    }
 });
 
 
-async function loadDefaultLRC() {
-    try {
-        const resp = await fetch('EI-TW.lrc');
-        if (!resp.ok) throw new Error('Arquivo não encontrado');
-        const txt = await resp.text();
-        timeline = parseLRC(txt);
-        renderLyrics();
-    } catch (e) {
-        karaoke.innerHTML = `<div class="line" style="opacity:1; text-align:center;">Letra não encontrada.</div>`;
-        console.error("Erro ao carregar o arquivo LRC:", e);
+// --- PARTÍCULAS DE CORAÇÃO ---
+const bgCtx = bgCanvas.getContext('2d');
+let particles = [];
+
+function resizeBg() {
+    bgCanvas.width = window.innerWidth;
+    bgCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeBg);
+resizeBg();
+
+class HeartParticle {
+    constructor() {
+        this.reset();
+        this.y = Math.random() * bgCanvas.height; 
+    }
+    
+    reset() {
+        this.x = Math.random() * bgCanvas.width;
+        this.y = bgCanvas.height + 20;
+        this.size = Math.random() * 15 + 8;
+        this.speedY = Math.random() * 1.5 + 0.5;
+        this.speedX = Math.random() * 0.5 - 0.25;
+        this.opacity = Math.random() * 0.4 + 0.1;
+        this.rotation = Math.random() * 360;
+        this.color = Math.random() > 0.6 ? '#ec4899' : '#a855f7'; 
+    }
+    
+    update() {
+        this.y -= this.speedY;
+        this.x += this.speedX;
+        this.rotation += 0.5;
+        
+        if (this.y < -50) this.reset();
+    }
+    
+    draw() {
+        bgCtx.save();
+        bgCtx.globalAlpha = this.opacity;
+        bgCtx.translate(this.x, this.y);
+        bgCtx.rotate(this.rotation * Math.PI / 180);
+        bgCtx.fillStyle = this.color;
+        bgCtx.font = `${this.size}px Arial`;
+        bgCtx.fillText("❤", 0, 0);
+        bgCtx.restore();
     }
 }
 
-// --- Estado Inicial ---
-karaoke.classList.remove('hide');
-loadDefaultLRC();
+for(let i=0; i<50; i++) particles.push(new HeartParticle());
 
-// ====== MENSAGEM ROMÂNTICA AO INICIAR ======
-setTimeout(() => {
-    if (window.innerWidth < 700) return;
-    const msg = document.createElement('div');
-    msg.textContent = "Te amo, minha princesa! 💖";
-    msg.style.position = 'fixed';
-    msg.style.top = '18%';
-    msg.style.left = '50%';
-    msg.style.transform = 'translateX(-50%)';
-    msg.style.background = 'rgba(200,107,240,0.92)';
-    msg.style.color = '#fff';
-    msg.style.padding = '16px 32px';
-    msg.style.borderRadius = '18px';
-    msg.style.fontWeight = 'bold';
-    msg.style.fontSize = '1.25em';
-    msg.style.boxShadow = '0 6px 32px #c86bf0bb';
-    msg.style.zIndex = 2000;
-    msg.style.opacity = 0;
-    msg.style.transition = 'opacity 1.2s';
-    document.body.appendChild(msg);
-    setTimeout(() => { msg.style.opacity = 1; }, 300);
-    setTimeout(() => { msg.style.opacity = 0; }, 3500);
-    setTimeout(() => { msg.remove(); }, 5000);
-}, 1200);
+function animateBg() {
+    bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+    
+    const grad = bgCtx.createLinearGradient(0, 0, 0, bgCanvas.height);
+    grad.addColorStop(0, '#0f172a'); 
+    grad.addColorStop(1, '#1e1b4b');
+    bgCtx.fillStyle = grad;
+    bgCtx.fillRect(0,0,bgCanvas.width, bgCanvas.height);
 
-// ====== CORAÇÕES FLUTUANTES ======
-function spawnHearts() {
-    if (window.innerWidth < 600) return; // Evita excesso no mobile
-    const container = document.body;
-    for (let i = 0; i < 8; i++) {
-        const heart = document.createElement('div');
-        heart.textContent = '💖';
-        heart.style.position = 'fixed';
-        heart.style.left = `${Math.random() * 100}%`;
-        heart.style.top = `${100 + Math.random() * 30}%`;
-        heart.style.fontSize = `${18 + Math.random() * 32}px`;
-        heart.style.opacity = 0.7 + Math.random() * 0.3;
-        heart.style.pointerEvents = 'none';
-        heart.style.zIndex = 999;
-        heart.style.transition = 'transform 7s linear, opacity 7s linear';
-        setTimeout(() => {
-            heart.style.transform = `translateY(-110vh) scale(${0.8 + Math.random() * 0.7})`;
-            heart.style.opacity = 0;
-        }, 100 + Math.random() * 1000);
-        setTimeout(() => heart.remove(), 8000);
-        container.appendChild(heart);
-    }
+    particles.forEach(p => {
+        p.update();
+        p.draw();
+    });
+    requestAnimationFrame(animateBg);
 }
-setInterval(spawnHearts, 4200);
-window.addEventListener('DOMContentLoaded', spawnHearts);
-
-// ====== MOBILE: Ajuste de rolagem ultra-suave ======
-function isMobile() {
-    return window.innerWidth < 700;
-}
+animateBg();
