@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="src/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;800&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet">
     <meta name="theme-color" content="#0f172a">
 </head>
 <body>
@@ -27,6 +27,24 @@
         </div>
     </div>
 
+    <!-- MODAL DA CARTA -->
+    <div id="letterModal" class="modal-overlay hidden">
+        <div class="modal-content glass">
+            <button id="closeLetter" class="close-btn">&times;</button>
+            <div class="letter-body">
+                <h2 class="script-font">Minha Princesa...</h2>
+                <p>
+                    Eu poderia usar todas as músicas do mundo, mas nenhuma explicaria o que sinto quando olho para você. 
+                    <br><br>
+                    Criei este pequeno universo digital para te lembrar que, não importa onde estejamos, você é a minha música favorita, o meu melhor refrão e a minha paz.
+                    <br><br>
+                    Obrigado por ser minha melhor amiga, meu amor e minha luz no fim do túnel.
+                </p>
+                <p class="signature">Com todo meu amor,<br>Seu Neném</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Canvas para Fundo e Partículas -->
     <canvas id="bgCanvas"></canvas>
     
@@ -37,7 +55,28 @@
                 <span>Dedicação Especial</span>
             </div>
             <h1>Para o Amor da Minha Vida</h1>
-            <p class="subtitle">Você é a única realidade que eu quero.</p>
+            
+            <!-- CONTADOR DE TEMPO -->
+            <div class="love-timer glass">
+                <div class="timer-unit">
+                    <span id="days">0</span>
+                    <label>Dias</label>
+                </div>
+                <div class="timer-unit">
+                    <span id="hours">0</span>
+                    <label>Horas</label>
+                </div>
+                <div class="timer-unit">
+                    <span id="minutes">0</span>
+                    <label>Min</label>
+                </div>
+                <div class="timer-unit">
+                    <span id="seconds">0</span>
+                    <label>Seg</label>
+                </div>
+            </div>
+            
+            <p class="subtitle">Cada segundo ao seu lado é um presente.</p>
         </header>
 
         <main class="grid-layout">
@@ -76,6 +115,11 @@
                 </div>
                 <!-- O SRC será injetado via JS após o download -->
                 <audio id="audioElement" crossorigin="anonymous"></audio>
+                
+                <!-- BOTÃO DA CARTA -->
+                <button id="openLetterBtn" class="btn-letter">
+                    💌 Ler Carta
+                </button>
             </section>
 
             <!-- Lyrics Card -->
@@ -93,6 +137,34 @@
                 </div>
             </section>
         </main>
+
+        <!-- SEÇÃO DE MEMÓRIAS -->
+        <section class="memories-section fade-in">
+            <h2 class="section-title">Nossos Melhores Momentos</h2>
+            <div class="polaroid-grid">
+                <!-- FOTO 1 -->
+                <div class="polaroid" style="--rotation: -2deg">
+                    <img src="src/img1.jpg" alt="Foto 1">
+                    <p>O Começo</p>
+                </div>
+                
+                <!-- FOTO 2 -->
+                <div class="polaroid" style="--rotation: 2deg">
+                    <img src="src/img2.jpg" alt="Foto 2">
+                    <p>Melhor Date</p>
+                </div>
+
+                <!-- VÍDEO (OCUPA A LINHA DE BAIXO) -->
+                <div class="polaroid polaroid-video" style="--rotation: 0deg">
+                    <!-- Substitua o src pelo seu vídeo -->
+                    <video controls controlsList="nodownload">
+                        <source src="src/VD1.mp4" type="video/mp4">
+                        Seu navegador não suporta vídeos.
+                    </video>
+                    <p>Sorrisos Bobos 🎬</p>
+                </div>
+            </div>
+        </section>
 
         <footer class="footer fade-in">
             Feito com <span class="heart-beat">❤️</span> e código puro.

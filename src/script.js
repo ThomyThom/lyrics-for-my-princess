@@ -29,17 +29,84 @@ let animationFrameId;
 let lyrics = [];
 let audioBlobUrl = null;
 
-// --- SISTEMA DE PRELOAD (BUFFERING KILLER) ---
+// --- SINCRONIZAÇÃO DE MÍDIA (REGRA DE EXCLUSIVIDADE) ---
+// Seleciona o primeiro vídeo encontrado na página
+const memoryVideo = document.querySelector('video');
+
+if (memoryVideo) {
+    // REGRA 1: Quando o vídeo começar, pausar a música
+    memoryVideo.addEventListener('play', () => {
+        // Se a música estiver tocando (!audio.paused), pausamos
+        if (!audio.paused) {
+            // Usamos a função togglePlay() pois ela já gerencia a troca dos ícones (Play/Pause)
+            togglePlay();
+        }
+    });
+
+    // REGRA 2: Quando a música começar, pausar o vídeo
+    // Usamos o evento nativo 'play' do áudio para garantir que funcione
+    // tanto pelo botão quanto por qualquer outro gatilho
+    audio.addEventListener('play', () => {
+        if (!memoryVideo.paused) {
+            memoryVideo.pause();
+        }
+    });
+}
+
+// --- LÓGICA DO CONTADOR DE TEMPO ---
+function updateLoveTimer() {
+    // DATA DE INÍCIO: 23 de Maio de 2024
+    const startDate = new Date(2024, 4, 23); 
+    const now = new Date();
+    
+    const diff = now - startDate;
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    
+    if(document.getElementById('days')) document.getElementById('days').textContent = days;
+    if(document.getElementById('hours')) document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
+    if(document.getElementById('minutes')) document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
+    if(document.getElementById('seconds')) document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+}
+setInterval(updateLoveTimer, 1000);
+updateLoveTimer();
+
+// --- LÓGICA DA CARTA/MODAL ---
+const letterModal = document.getElementById('letterModal');
+const openLetterBtn = document.getElementById('openLetterBtn');
+const closeLetterBtn = document.getElementById('closeLetter');
+
+if (openLetterBtn) {
+    openLetterBtn.addEventListener('click', () => {
+        letterModal.classList.remove('hidden');
+    });
+}
+
+if (closeLetterBtn) {
+    closeLetterBtn.addEventListener('click', () => {
+        letterModal.classList.add('hidden');
+    });
+}
+
+if (letterModal) {
+    letterModal.addEventListener('click', (e) => {
+        if (e.target === letterModal) {
+            letterModal.classList.add('hidden');
+        }
+    });
+}
+
+// --- SISTEMA DE PRELOAD ---
 async function initApp() {
     try {
         const audioUrl = 'SE-TW.mp3';
         
-        // 1. Fetch com leitura de stream para barra de progresso
         const response = await fetch(audioUrl);
         const contentLength = +response.headers.get('Content-Length');
-        
-        // Fallback se não tiver Content-Length (alguns servidores locais não mandam)
-        const total = contentLength || 8000000; // Estima 8MB
+        const total = contentLength || 12000000; // Fallback para 12MB se não disponível
         
         const reader = response.body.getReader();
         let receivedLength = 0;
@@ -48,49 +115,41 @@ async function initApp() {
         while(true) {
             const {done, value} = await reader.read();
             if (done) break;
-            
             chunks.push(value);
             receivedLength += value.length;
             
-            // Atualiza UI
             const percent = Math.min(100, Math.round((receivedLength / total) * 100));
-            loadingBar.style.width = `${percent}%`;
-            percentText.textContent = `${percent}%`;
+            if(loadingBar) loadingBar.style.width = `${percent}%`;
+            if(percentText) percentText.textContent = `${percent}%`;
         }
 
-        // 2. Cria o Blob (Arquivo local na memória)
         const blob = new Blob(chunks);
         audioBlobUrl = URL.createObjectURL(blob);
         audio.src = audioBlobUrl;
 
-        // 3. Tudo pronto
-        loadingText.textContent = "Tudo pronto para você! 💝";
-        loadingBar.style.background = "#4ade80"; // Verde sucesso
-        startBtn.classList.add('visible'); // Mostra botão de entrar
+        if(loadingText) loadingText.textContent = "Tudo pronto para você! 💝";
+        if(loadingBar) loadingBar.style.background = "#4ade80";
+        if(startBtn) startBtn.classList.add('visible');
 
     } catch (error) {
         console.error("Erro no carregamento:", error);
-        loadingText.textContent = "Erro ao carregar o amor... Tente recarregar.";
+        if(loadingText) loadingText.textContent = "Erro ao carregar o amor... Tente recarregar.";
     }
 }
 
-// Inicia o download assim que o script roda
 initApp();
 
-// Botão de Entrada (Necessário para desbloquear AudioContext no navegador)
-startBtn.addEventListener('click', () => {
-    // Esconde loader
-    loaderOverlay.classList.add('hidden');
-    // Mostra app
-    appContainer.classList.add('visible');
-    
-    // Inicia contexto de áudio
-    initAudioContext();
-    audioContext.resume().then(() => {
-        // Tenta tocar (pode falhar se o blob não carregou 100%, mas o botão só aparece se carregou)
-        togglePlay();
+if(startBtn) {
+    startBtn.addEventListener('click', () => {
+        loaderOverlay.classList.add('hidden');
+        appContainer.classList.add('visible');
+        
+        initAudioContext();
+        audioContext.resume().then(() => {
+            togglePlay();
+        });
     });
-});
+}
 
 // --- LETRA EMBUTIDA ---
 const lyricsText = `
@@ -130,7 +189,6 @@ const lyricsText = `
 [02:09.18]Oh
 `;
 
-// --- Parser LRC ---
 function parseLyrics() {
     const lines = lyricsText.split('\n');
     const regex = /^\[(\d{2}):(\d{2}(?:\.\d+)?)\](.*)/;
@@ -151,6 +209,7 @@ function parseLyrics() {
 }
 
 function renderLyricsHTML() {
+    if(!lyricsContent) return;
     lyricsContent.innerHTML = '';
     lyrics.forEach((line, index) => {
         const div = document.createElement('div');
@@ -171,11 +230,9 @@ function initAudioContext() {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioContext = new AudioContext();
     analyser = audioContext.createAnalyser();
-    
     analyser.smoothingTimeConstant = 0.85;
     analyser.fftSize = 256; 
     
-    // Importante: reconectar o elemento se o src mudou (blob)
     source = audioContext.createMediaElementSource(audio);
     source.connect(analyser);
     analyser.connect(audioContext.destination);
@@ -185,6 +242,7 @@ function initAudioContext() {
 
 function drawVisualizer() {
     if (!isPlaying) return;
+    if (!visualizerCanvas) return;
 
     const ctx = visualizerCanvas.getContext('2d');
     const width = visualizerCanvas.width;
@@ -204,7 +262,6 @@ function drawVisualizer() {
     
     for (let i = 0; i < dataArray.length; i++) {
         if (i > dataArray.length * 0.7) continue; 
-
         const val = dataArray[i];
         const barHeight = (val / 255) * 45; 
         const angle = i * barWidth - (Math.PI / 2);
@@ -230,13 +287,13 @@ function drawVisualizer() {
     
     const averageFreq = dataArray.reduce((a,b) => a+b) / dataArray.length;
     const scale = 1 + (averageFreq / 255) * 0.08;
-    document.querySelector('.album-art').style.transform = `scale(${scale})`;
+    const albumArt = document.querySelector('.album-art');
+    if(albumArt) albumArt.style.transform = `scale(${scale})`;
 
     requestAnimationFrame(drawVisualizer);
 }
 
 // --- Sincronização e Loop Principal ---
-
 function syncLyrics() {
     const time = audio.currentTime;
     let idx = -1;
@@ -249,16 +306,14 @@ function syncLyrics() {
     }
 
     if (idx !== currentLineIndex) {
-        if (currentLineIndex !== -1 && lyricsContent.children[currentLineIndex]) {
+        if (currentLineIndex !== -1 && lyricsContent && lyricsContent.children[currentLineIndex]) {
             lyricsContent.children[currentLineIndex].classList.remove('active');
         }
-        
-        if (idx !== -1 && lyricsContent.children[idx]) {
+        if (idx !== -1 && lyricsContent && lyricsContent.children[idx]) {
             const el = lyricsContent.children[idx];
             el.classList.add('active');
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-        
         currentLineIndex = idx;
     }
 }
@@ -267,14 +322,13 @@ function updateProgress() {
     if (isPlaying) {
         requestAnimationFrame(updateProgress);
     }
-
     const current = audio.currentTime;
     const dur = audio.duration || 1;
     
-    timeCurrent.textContent = formatTime(current);
+    if(timeCurrent) timeCurrent.textContent = formatTime(current);
     syncLyrics(); 
 
-    if (!isDragging) {
+    if (!isDragging && progressBarFill && progressThumb) {
         const percent = (current / dur) * 100;
         progressBarFill.style.width = `${percent}%`;
         progressThumb.style.left = `${percent}%`;
@@ -283,7 +337,7 @@ function updateProgress() {
 
 // --- Controles de Áudio ---
 function togglePlay() {
-    // initAudioContext chamado no botão de entrada
+    if (!audioContext) initAudioContext();
     
     if (audio.paused) {
         audioContext.resume().then(() => {
@@ -311,7 +365,6 @@ function formatTime(s) {
 }
 
 // --- Lógica de Barra de Progresso ---
-
 function calculateSeek(e) {
     const rect = progressBarWrap.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -324,16 +377,15 @@ function calculateSeek(e) {
 function handleSeekMove(e) {
     if (!isDragging) return;
     e.preventDefault(); 
-
     const percent = calculateSeek(e);
     
-    progressBarFill.style.width = `${percent * 100}%`;
-    progressThumb.style.left = `${percent * 100}%`;
+    if(progressBarFill) progressBarFill.style.width = `${percent * 100}%`;
+    if(progressThumb) progressThumb.style.left = `${percent * 100}%`;
     
     const newTime = percent * audio.duration;
     if (isFinite(newTime)) {
         audio.currentTime = newTime;
-        timeCurrent.textContent = formatTime(newTime);
+        if(timeCurrent) timeCurrent.textContent = formatTime(newTime);
         syncLyrics(); 
     }
 }
@@ -361,12 +413,10 @@ function endDrag(e) {
     }
 }
 
-btnPlayPause.addEventListener('click', togglePlay);
+if(btnPlayPause) btnPlayPause.addEventListener('click', togglePlay);
 
-// Inicialização de Metadata e Lyrics
-// Nota: loadedmetadata dispara quando o blob é atribuído
 audio.addEventListener('loadedmetadata', () => {
-    timeTotal.textContent = formatTime(audio.duration);
+    if(timeTotal) timeTotal.textContent = formatTime(audio.duration);
     parseLyrics();
 });
 
@@ -374,29 +424,32 @@ audio.addEventListener('ended', () => {
     isPlaying = false;
     iconPlay.style.display = 'block';
     iconPause.style.display = 'none';
-    progressBarFill.style.width = '0%';
-    progressThumb.style.left = '0%';
+    if(progressBarFill) progressBarFill.style.width = '0%';
+    if(progressThumb) progressThumb.style.left = '0%';
 });
 
-progressBarWrap.addEventListener('mousedown', startDrag);
-progressBarWrap.addEventListener('touchstart', startDrag, { passive: false });
+if(progressBarWrap) {
+    progressBarWrap.addEventListener('mousedown', startDrag);
+    progressBarWrap.addEventListener('touchstart', startDrag, { passive: false });
+}
 
 audio.addEventListener('timeupdate', () => {
     if (!isPlaying && !isDragging) {
-        timeCurrent.textContent = formatTime(audio.currentTime);
+        if(timeCurrent) timeCurrent.textContent = formatTime(audio.currentTime);
         const percent = (audio.currentTime / audio.duration) * 100 || 0;
-        progressBarFill.style.width = `${percent}%`;
-        progressThumb.style.left = `${percent}%`;
+        if(progressBarFill) progressBarFill.style.width = `${percent}%`;
+        if(progressThumb) progressThumb.style.left = `${percent}%`;
         syncLyrics();
     }
 });
 
 
 // --- PARTÍCULAS DE CORAÇÃO ---
-const bgCtx = bgCanvas.getContext('2d');
+const bgCtx = bgCanvas ? bgCanvas.getContext('2d') : null;
 let particles = [];
 
 function resizeBg() {
+    if(!bgCanvas) return;
     bgCanvas.width = window.innerWidth;
     bgCanvas.height = window.innerHeight;
 }
@@ -405,11 +458,13 @@ resizeBg();
 
 class HeartParticle {
     constructor() {
+        if(!bgCanvas) return;
         this.reset();
         this.y = Math.random() * bgCanvas.height; 
     }
     
     reset() {
+        if(!bgCanvas) return;
         this.x = Math.random() * bgCanvas.width;
         this.y = bgCanvas.height + 20;
         this.size = Math.random() * 15 + 8;
@@ -429,6 +484,7 @@ class HeartParticle {
     }
     
     draw() {
+        if(!bgCtx) return;
         bgCtx.save();
         bgCtx.globalAlpha = this.opacity;
         bgCtx.translate(this.x, this.y);
@@ -440,9 +496,12 @@ class HeartParticle {
     }
 }
 
-for(let i=0; i<50; i++) particles.push(new HeartParticle());
+if(bgCanvas) {
+    for(let i=0; i<50; i++) particles.push(new HeartParticle());
+}
 
 function animateBg() {
+    if(!bgCtx || !bgCanvas) return;
     bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
     
     const grad = bgCtx.createLinearGradient(0, 0, 0, bgCanvas.height);
