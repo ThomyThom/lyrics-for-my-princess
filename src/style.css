@@ -91,7 +91,7 @@ body {
     letter-spacing: 1px;
 }
 
-/* --- MEMORIES SECTION (ATUALIZADO PARA 2 FOTOS + 1 VIDEO) --- */
+/* --- MEMORIES SECTION --- */
 .memories-section {
     margin-top: 5rem;
     width: 100%;
@@ -111,7 +111,7 @@ body {
 
 .polaroid-grid {
     display: grid;
-    /* Grid de 2 colunas para as fotos */
+    /* Grid de 2 colunas para as fotos no Desktop */
     grid-template-columns: repeat(2, auto);
     justify-content: center;
     gap: 2rem;
@@ -162,12 +162,12 @@ body {
 
 /* --- POLAROID DE VÍDEO (WIDE) --- */
 .polaroid-video {
-    /* Ocupa as 2 colunas (linha inteira) */
+    /* Ocupa as 2 colunas no Desktop */
     grid-column: 1 / -1;
     width: 100%;
-    max-width: 480px; /* Mais largo para o vídeo */
+    max-width: 480px;
     justify-self: center;
-    padding-bottom: 50px; /* Mais espaço para o texto */
+    padding-bottom: 50px;
 }
 
 .polaroid-video video {
@@ -177,16 +177,26 @@ body {
     background: #000;
 }
 
-/* Responsividade Mobile para a Galeria */
-@media (max-width: 600px) {
+/* --- CORREÇÃO DE LAYOUT MOBILE --- */
+@media (max-width: 700px) {
     .polaroid-grid {
-        grid-template-columns: 1fr; /* Empilha tudo em 1 coluna */
-        gap: 3rem;
+        /* Muda de Grid para Flexbox para empilhamento vertical perfeito */
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* Centraliza horizontalmente */
+        gap: 3.5rem; /* Espaço maior entre as polaroids */
     }
     
+    .polaroid {
+        /* Remove rotação excessiva no mobile para evitar overflow lateral */
+        transform: rotate(var(--rotation)) scale(0.95);
+        margin: 0; /* Remove margens que possam deslocar */
+    }
+
     .polaroid-video {
-        grid-column: auto; /* Volta ao normal */
-        max-width: 280px; /* Tamanho padrão no mobile */
+        width: 100%;
+        max-width: 280px; /* Largura segura para mobile */
+        grid-column: auto; /* Reseta propriedade de grid */
     }
 }
 
